@@ -18,6 +18,9 @@ export function BottomNav() {
   // bar at the bottom, so the bottom nav would overlap it on mobile.
   if (pathname?.startsWith("/chat")) return null;
 
+  // No navigation while signing in / creating an account.
+  if (pathname?.startsWith("/login")) return null;
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/90 backdrop-blur sm:hidden">
       <div className="mx-auto flex max-w-3xl items-stretch justify-between px-2 pb-[env(safe-area-inset-bottom)]">

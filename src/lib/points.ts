@@ -1,8 +1,5 @@
-// Simple client-side gamification helpers.
-// Points are stored in localStorage until a real backend is wired up
-// (see profiles.points / point_events in supabase/migrations).
-
-export const POINTS_STORAGE_KEY = "4friends_points";
+// Gamification helpers. Points live on `profiles.points`, backed by
+// `point_events` (see supabase/migrations and src/hooks/usePoints.tsx).
 
 export const POINTS_PER_TASK = 15;
 

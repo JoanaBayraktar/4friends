@@ -1,19 +1,21 @@
 "use client";
 
 import { usePoints } from "@/hooks/usePoints";
+import { useGroupMembers } from "@/hooks/useGroupMembers";
 import { POINTS_PER_TASK } from "@/lib/points";
-import { getProfileById } from "@/lib/mock-data";
+import { getInitials } from "@/lib/auth";
 
 export function ProfileStats({
   answeredAboutCount,
   topReplierId,
 }: {
   answeredAboutCount: number;
-  topReplierId: string;
+  topReplierId: string | null;
 }) {
   const { points, hydrated: pointsHydrated } = usePoints();
+  const { getMember } = useGroupMembers();
 
-  const topReplier = getProfileById(topReplierId);
+  const topReplier = topReplierId ? getMember(topReplierId) : undefined;
   const questionsAnswered = pointsHydrated
     ? Math.round(points / POINTS_PER_TASK)
     : 0;
@@ -45,7 +47,7 @@ export function ProfileStats({
             <span
               className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold ${topReplier.color}`}
             >
-              {topReplier.initials}
+              {getInitials(topReplier.name)}
             </span>
             <span className="text-sm font-semibold text-zinc-900">
               {topReplier.name}

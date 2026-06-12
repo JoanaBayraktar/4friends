@@ -1,230 +1,217 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { authErrorMessage, randomAvatarColor, usernameToEmail } from "@/lib/auth";
 
-const STEPS = ["code", "name", "photo"] as const;
-type Step = (typeof STEPS)[number];
+type Mode = "login" | "register";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("code");
+  const supabase = useMemo(() => createClient(), []);
 
-  const [code, setCode] = useState("");
+  const [mode, setMode] = useState<Mode>("login");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [pronouns, setPronouns] = useState("");
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const stepIndex = STEPS.indexOf(step);
-
-  function goNext() {
-    if (step === "code") setStep("name");
-    else if (step === "name") setStep("photo");
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
   }
 
-  function goBack() {
-    if (step === "photo") setStep("name");
-    else if (step === "name") setStep("code");
-  }
-
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPhotoPreview(reader.result as string);
-    reader.readAsDataURL(file);
-  }
-
-  function handleFinish(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // TODO: validate invite code against `groups.invite_code`, create/sign
-    // in the user, upsert their `profiles` row and upload the photo to
-    // Supabase Storage (-> profiles.image_url).
-    router.push("/group");
+    setError(null);
+    setLoading(true);
+
+    try {
+      const email = usernameToEmail(username);
+
+      if (mode === "login") {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+      } else {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              username: username.trim().toLowerCase(),
+              name: name.trim(),
+              pronouns: pronouns.trim() || null,
+              invite_code: inviteCode.trim(),
+              color: randomAvatarColor(),
+            },
+          },
+        });
+        if (signUpError) throw signUpError;
+
+        // If "Confirm email" is off, sign-up already returns a session.
+        // If not, log in right away – the account is confirmed either way.
+        if (!data.session) {
+          const { error: signInError } = await supabase.auth.signInWithPassword(
+            { email, password }
+          );
+          if (signInError) throw signInError;
+        }
+      }
+
+      router.push("/group");
+      router.refresh();
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6">
       <form
-        onSubmit={handleFinish}
+        onSubmit={handleSubmit}
         className="w-full max-w-sm space-y-5 rounded-2xl bg-white p-6 shadow-sm"
       >
-        <div className="flex items-center gap-1.5">
-          {STEPS.map((s, i) => (
-            <span
-              key={s}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${
-                i <= stepIndex ? "bg-orange-400" : "bg-orange-100"
-              }`}
-            />
-          ))}
+        <div className="space-y-1 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">4Friends</h1>
+          <p className="text-sm text-zinc-500">
+            {mode === "login"
+              ? "Schön, dass du wieder da bist."
+              : "Tritt deinem Freundeskreis bei."}
+          </p>
         </div>
 
-        {step === "code" && (
-          <div className="space-y-5">
-            <div className="space-y-1 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                Freundeskreis beitreten
-              </h1>
-              <p className="text-sm text-zinc-500">
-                Gib den Einladungscode deines Freundeskreises ein.
-              </p>
-            </div>
+        <div className="flex gap-1.5 rounded-full bg-zinc-100 p-1 text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => switchMode("login")}
+            className={`flex-1 rounded-full py-1.5 transition-colors ${
+              mode === "login"
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500"
+            }`}
+          >
+            Anmelden
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("register")}
+            className={`flex-1 rounded-full py-1.5 transition-colors ${
+              mode === "register"
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500"
+            }`}
+          >
+            Registrieren
+          </button>
+        </div>
 
-            <div className="space-y-1">
-              <label
-                htmlFor="code"
-                className="text-sm font-medium text-zinc-700"
-              >
-                Einladungscode
-              </label>
-              <input
-                id="code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="z. B. CREW2026"
-                required
-                autoFocus
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={!code}
-              className="w-full rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Weiter
-            </button>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label htmlFor="username" className="text-sm font-medium text-zinc-700">
+              Benutzername
+            </label>
+            <input
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="z. B. joey"
+              required
+              autoFocus
+              autoComplete="username"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-base focus:border-zinc-400 focus:outline-none"
+            />
           </div>
+
+          <div className="space-y-1">
+            <label htmlFor="password" className="text-sm font-medium text-zinc-700">
+              Passwort
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Mindestens 6 Zeichen"
+              required
+              minLength={6}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-base focus:border-zinc-400 focus:outline-none"
+            />
+          </div>
+
+          {mode === "register" && (
+            <>
+              <div className="space-y-1">
+                <label htmlFor="name" className="text-sm font-medium text-zinc-700">
+                  Dein Name
+                </label>
+                <input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="So sehen dich deine Freund:innen"
+                  required
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-base focus:border-zinc-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="pronouns" className="text-sm font-medium text-zinc-700">
+                  Pronomen{" "}
+                  <span className="font-normal text-zinc-400">(optional)</span>
+                </label>
+                <input
+                  id="pronouns"
+                  value={pronouns}
+                  onChange={(e) => setPronouns(e.target.value)}
+                  placeholder="z. B. sie/ihr, er/ihm, they/them"
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-base focus:border-zinc-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="inviteCode" className="text-sm font-medium text-zinc-700">
+                  Einladungscode
+                </label>
+                <input
+                  id="inviteCode"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  placeholder="z. B. #Couscous-Salat-2026"
+                  required
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-base focus:border-zinc-400 focus:outline-none"
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {error && (
+          <p className="rounded-xl bg-rose-50 px-4 py-2 text-center text-sm text-rose-600">
+            {error}
+          </p>
         )}
 
-        {step === "name" && (
-          <div className="space-y-5">
-            <div className="space-y-1 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                Wer bist du?
-              </h1>
-              <p className="text-sm text-zinc-500">
-                So sehen dich deine Freund:innen in der App.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <label
-                htmlFor="name"
-                className="text-sm font-medium text-zinc-700"
-              >
-                Dein Name
-              </label>
-              <input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Wie sollen dich andere sehen?"
-                required
-                autoFocus
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label
-                htmlFor="pronouns"
-                className="text-sm font-medium text-zinc-700"
-              >
-                Pronomen{" "}
-                <span className="font-normal text-zinc-400">(optional)</span>
-              </label>
-              <input
-                id="pronouns"
-                value={pronouns}
-                onChange={(e) => setPronouns(e.target.value)}
-                placeholder="z. B. sie/ihr, er/ihm, they/them"
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={goBack}
-                className="flex-1 rounded-full border border-zinc-300 px-6 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-              >
-                Zurück
-              </button>
-              <button
-                type="button"
-                onClick={goNext}
-                disabled={!name}
-                className="flex-1 rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Weiter
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === "photo" && (
-          <div className="space-y-5">
-            <div className="space-y-1 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                Profilfoto
-              </h1>
-              <p className="text-sm text-zinc-500">
-                Optional – du kannst das später jederzeit ändern.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center gap-3">
-              <label
-                htmlFor="photo"
-                className="flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-orange-100 text-sm font-medium text-orange-900 transition-colors hover:bg-orange-200"
-              >
-                {photoPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={photoPreview}
-                    alt="Profilfoto-Vorschau"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  "Foto wählen"
-                )}
-              </label>
-              <input
-                id="photo"
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                className="hidden"
-              />
-            </div>
-
-            <p className="rounded-xl bg-orange-50 px-4 py-3 text-center text-xs text-zinc-500">
-              Bald: Deine Freund:innen können dir liebevoll ein neues
-              Profilbild vorschlagen, das du dann freigeben kannst. Erstmal
-              nur als Idee festgehalten – kommt noch nicht. ✨
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={goBack}
-                className="flex-1 rounded-full border border-zinc-300 px-6 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-              >
-                Zurück
-              </button>
-              <button
-                type="submit"
-                className="flex-1 rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
-              >
-                Loslegen
-              </button>
-            </div>
-          </div>
-        )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {loading
+            ? "Einen Moment …"
+            : mode === "login"
+              ? "Anmelden"
+              : "Konto erstellen"}
+        </button>
       </form>
     </main>
   );

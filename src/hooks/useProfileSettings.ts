@@ -1,38 +1,40 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import {
-  DEFAULT_PROFILE_SETTINGS,
-  PROFILE_SETTINGS_KEY,
-  type ProfileSettings,
-} from "@/lib/profile-settings";
+import { useCallback, useMemo } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/lib/supabase/client";
+import type { ProfileSettings } from "@/lib/profile-settings";
+import type { Database } from "@/lib/supabase/types";
+
+type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
 
 export function useProfileSettings() {
-  const [settings, setSettings] = useState<ProfileSettings>(
-    DEFAULT_PROFILE_SETTINGS
+  const { userId, profile, hydrated, refreshProfile } = useAuth();
+  const supabase = useMemo(() => createClient(), []);
+
+  const settings: ProfileSettings = {
+    name: profile?.name ?? "",
+    pronouns: profile?.pronouns ?? "",
+    favoriteSong: profile?.favorite_song ?? "",
+    notifications: profile?.notifications ?? true,
+  };
+
+  const updateSettings = useCallback(
+    async (patch: Partial<ProfileSettings>) => {
+      if (!userId) return;
+      const dbPatch: ProfileUpdate = {};
+      if (patch.name !== undefined) dbPatch.name = patch.name;
+      if (patch.pronouns !== undefined) dbPatch.pronouns = patch.pronouns;
+      if (patch.favoriteSong !== undefined)
+        dbPatch.favorite_song = patch.favoriteSong;
+      if (patch.notifications !== undefined)
+        dbPatch.notifications = patch.notifications;
+
+      await supabase.from("profiles").update(dbPatch).eq("id", userId);
+      await refreshProfile();
+    },
+    [userId, supabase, refreshProfile]
   );
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(PROFILE_SETTINGS_KEY);
-    if (stored) {
-      try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from localStorage on mount
-        setSettings({ ...DEFAULT_PROFILE_SETTINGS, ...JSON.parse(stored) });
-      } catch {
-        setSettings(DEFAULT_PROFILE_SETTINGS);
-      }
-    }
-    setHydrated(true);
-  }, []);
-
-  const updateSettings = useCallback((patch: Partial<ProfileSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      window.localStorage.setItem(PROFILE_SETTINGS_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
 
   return { settings, hydrated, updateSettings };
 }

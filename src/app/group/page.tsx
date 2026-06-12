@@ -1,15 +1,48 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
-import { MOCK_GROUP, MOCK_PROFILES } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/server";
+import { getInitials } from "@/lib/auth";
 
-export default function GroupOverviewPage() {
+export default async function GroupOverviewPage() {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+
+  let groupName = "";
+  let members: { id: string; name: string; pronouns: string | null; color: string }[] = [];
+
+  if (userData.user) {
+    const { data: myProfile } = await supabase
+      .from("profiles")
+      .select("group_id")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+
+    if (myProfile) {
+      const [{ data: group }, { data: profiles }] = await Promise.all([
+        supabase
+          .from("groups")
+          .select("name")
+          .eq("id", myProfile.group_id)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("id, name, pronouns, color")
+          .eq("group_id", myProfile.group_id)
+          .order("name"),
+      ]);
+
+      groupName = group?.name ?? "";
+      members = profiles ?? [];
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col">
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
         <div className="mb-6 space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">
-            {MOCK_GROUP.name}
+            {groupName}
           </h1>
           <p className="text-sm text-zinc-500">
             Wähle eine Person aus – die App überrascht dich mit einer
@@ -18,7 +51,7 @@ export default function GroupOverviewPage() {
         </div>
 
         <ul className="grid grid-cols-3 gap-6 sm:grid-cols-4">
-          {MOCK_PROFILES.map((profile) => (
+          {members.map((profile) => (
             <li key={profile.id} className="flex flex-col items-center gap-2">
               <Link
                 href={`/group/${profile.id}`}
@@ -27,13 +60,13 @@ export default function GroupOverviewPage() {
                 <span
                   className={`flex h-20 w-20 items-center justify-center rounded-full text-xl font-semibold shadow-sm transition-transform group-hover:scale-105 ${profile.color}`}
                 >
-                  {profile.initials}
+                  {getInitials(profile.name)}
                 </span>
                 <span className="font-medium text-zinc-900">
                   {profile.name}
                 </span>
                 <span className="text-xs text-zinc-400">
-                  {profile.pronouns ?? " "}
+                  {profile.pronouns ?? " "}
                 </span>
               </Link>
 

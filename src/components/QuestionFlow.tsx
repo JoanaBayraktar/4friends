@@ -6,7 +6,7 @@ import type { MockQuestion, MockSliderQuestion } from "@/lib/mock-data";
 type TextItem = MockQuestion;
 type SliderItem = MockSliderQuestion;
 
-function getStopText(item: SliderItem, value: number): string {
+export function getStopText(item: SliderItem, value: number): string {
   let closest = item.stops[0];
   for (const stop of item.stops) {
     if (Math.abs(stop.value - value) < Math.abs(closest.value - value)) {

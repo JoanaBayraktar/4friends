@@ -1,27 +1,68 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { AnswerCard } from "@/components/AnswerCard";
-import {
-  getProfileById,
-  MOCK_PROFILE_ANSWERS,
-  MOCK_PROFILE_SUMMARY,
-} from "@/lib/mock-data";
+import { useProfileData } from "@/hooks/useProfileData";
+import { createClient } from "@/lib/supabase/client";
+import { getInitials } from "@/lib/auth";
+import type { Profile } from "@/lib/supabase/types";
 
-export default async function ProfilePage({
-  params,
-}: {
-  params: Promise<{ personId: string }>;
-}) {
-  const { personId } = await params;
-  const profile = getProfileById(personId);
-  if (!profile) notFound();
+export default function ProfilePage() {
+  const { personId } = useParams<{ personId: string }>();
+  const supabase = useMemo(() => createClient(), []);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
-  const summary = MOCK_PROFILE_SUMMARY[profile.id];
-  const answers = MOCK_PROFILE_ANSWERS[profile.id] ?? [];
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", personId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        setProfile(data ?? null);
+        setProfileLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [personId, supabase]);
+
+  const { summary, answers, tags, hydrated } = useProfileData(
+    profile?.id ?? null
+  );
   const totalAnswers = answers.reduce(
     (sum, qa) => sum + qa.answers.length,
     0
   );
+
+  if (profileLoaded && !profile) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <Header />
+        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
+          <p className="rounded-2xl bg-white p-5 text-sm text-zinc-500 shadow-sm">
+            Diese Person wurde nicht gefunden.
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <Header />
+        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
+          <div className="h-40 animate-pulse rounded-2xl bg-white/60" />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -31,7 +72,7 @@ export default async function ProfilePage({
           <span
             className={`flex h-24 w-24 items-center justify-center rounded-full text-3xl font-semibold shadow-sm ${profile.color}`}
           >
-            {profile.initials}
+            {getInitials(profile.name)}
           </span>
           <div>
             <h1 className="flex items-center justify-center gap-1.5 text-2xl font-semibold tracking-tight">
@@ -51,35 +92,41 @@ export default async function ProfilePage({
           </div>
         </div>
 
-        {summary ? (
+        {!hydrated ? (
+          <div className="h-40 animate-pulse rounded-2xl bg-white/60" />
+        ) : summary?.content || answers.length > 0 || tags.length > 0 ? (
           <div className="space-y-8">
-            {!summary.approved && (
+            {!summary?.approved && (
               <p className="rounded-xl bg-amber-100 px-4 py-2 text-sm text-amber-800">
                 Dieses Profil wurde noch nicht von {profile.name} freigegeben.
               </p>
             )}
 
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <p className="leading-relaxed text-zinc-800">
-                {summary.content}
-              </p>
-            </div>
-
-            <section className="space-y-3">
-              <p className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
-                Eigenschaften, die andere besonders oft genannt haben
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {summary.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-orange-100 px-3 py-1 text-sm text-orange-900"
-                  >
-                    {tag}
-                  </span>
-                ))}
+            {summary?.content && (
+              <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <p className="leading-relaxed text-zinc-800">
+                  {summary.content}
+                </p>
               </div>
-            </section>
+            )}
+
+            {tags.length > 0 && (
+              <section className="space-y-3">
+                <p className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+                  Eigenschaften, die andere besonders oft genannt haben
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag.label}
+                      className="rounded-full bg-orange-100 px-3 py-1 text-sm text-orange-900"
+                    >
+                      {tag.label}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {answers.length > 0 && (
               <section className="space-y-3">
@@ -98,11 +145,13 @@ export default async function ProfilePage({
               </section>
             )}
 
-            <p className="rounded-2xl bg-orange-50 px-4 py-3 text-center text-sm text-orange-900">
-              Dein Freundeskreis hat {totalAnswers}{" "}
-              {totalAnswers === 1 ? "Frage" : "Fragen"} über {profile.name}{" "}
-              beantwortet 💛
-            </p>
+            {totalAnswers > 0 && (
+              <p className="rounded-2xl bg-orange-50 px-4 py-3 text-center text-sm text-orange-900">
+                Dein Freundeskreis hat {totalAnswers}{" "}
+                {totalAnswers === 1 ? "Frage" : "Fragen"} über {profile.name}{" "}
+                beantwortet 💛
+              </p>
+            )}
           </div>
         ) : (
           <p className="rounded-2xl bg-white p-5 text-sm text-zinc-500 shadow-sm">

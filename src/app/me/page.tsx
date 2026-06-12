@@ -1,22 +1,27 @@
+"use client";
+
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { AnswerCard } from "@/components/AnswerCard";
-import {
-  MOCK_PROFILES,
-  MOCK_PROFILE_ANSWERS,
-  MOCK_PROFILE_STATS,
-  MOCK_PROFILE_SUMMARY,
-} from "@/lib/mock-data";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfileData } from "@/hooks/useProfileData";
 import { ProfileEditor } from "./ProfileEditor";
 import { ProfileExtras } from "./ProfileExtras";
 import { ProfileStats } from "./ProfileStats";
 
 export default function MyProfilePage() {
-  // TODO: replace with the signed-in user's own profile and summary.
-  const profile = MOCK_PROFILES[0];
-  const summary = MOCK_PROFILE_SUMMARY[profile.id];
-  const stats = MOCK_PROFILE_STATS[profile.id];
-  const answers = MOCK_PROFILE_ANSWERS[profile.id] ?? [];
+  const { profile } = useAuth();
+  const { summary, answers, tags, stats, hydrated } = useProfileData(
+    profile?.id ?? null
+  );
+
+  if (!profile) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <Header />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -46,8 +51,8 @@ export default function MyProfilePage() {
               Deine Stats
             </p>
             <ProfileStats
-              answeredAboutCount={stats?.answeredAboutCount ?? 0}
-              topReplierId={stats?.topReplierId ?? ""}
+              answeredAboutCount={stats.answeredAboutCount}
+              topReplierId={stats.topReplierId}
             />
           </section>
 
@@ -61,18 +66,20 @@ export default function MyProfilePage() {
                 Eigenschaften, die dein Freundeskreis am meisten genannt hat
               </p>
               <div className="flex flex-wrap gap-2">
-                {(summary?.tags.length ?? 0) > 0 ? (
-                  summary?.tags.map((tag) => (
+                {tags.length > 0 ? (
+                  tags.map((tag) => (
                     <span
-                      key={tag}
+                      key={tag.label}
                       className="rounded-full bg-orange-100 px-3 py-1 text-sm text-orange-900"
                     >
-                      {tag}
+                      {tag.label}
                     </span>
                   ))
                 ) : (
                   <p className="text-sm text-zinc-400">
-                    Noch keine Tags vorhanden.
+                    {hydrated
+                      ? "Noch keine Tags vorhanden."
+                      : "Wird geladen …"}
                   </p>
                 )}
               </div>
@@ -97,6 +104,7 @@ export default function MyProfilePage() {
             </p>
             <ProfileExtras />
             <ProfileEditor
+              userId={profile.id}
               initialContent={summary?.content ?? ""}
               initialApproved={summary?.approved ?? false}
             />

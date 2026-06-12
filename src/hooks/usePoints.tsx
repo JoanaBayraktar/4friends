@@ -4,43 +4,48 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
-  useState,
+  useMemo,
   type ReactNode,
 } from "react";
-import { getLevel, getLevelIndex, POINTS_STORAGE_KEY, type Level } from "@/lib/points";
+import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/lib/supabase/client";
+import { getLevel, getLevelIndex, type Level } from "@/lib/points";
 
 type PointsContextValue = {
   points: number;
   level: Level;
   hydrated: boolean;
-  addPoints: (amount: number) => { newLevel: Level | null };
+  addPoints: (
+    amount: number,
+    reason?: string
+  ) => Promise<{ newLevel: Level | null }>;
 };
 
 const PointsContext = createContext<PointsContextValue | null>(null);
 
 export function PointsProvider({ children }: { children: ReactNode }) {
-  const [points, setPoints] = useState(0);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(POINTS_STORAGE_KEY);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from localStorage on mount
-    setPoints(stored ? Number(stored) || 0 : 0);
-    setHydrated(true);
-  }, []);
+  const { userId, profile, hydrated, refreshProfile } = useAuth();
+  const supabase = useMemo(() => createClient(), []);
+  const points = profile?.points ?? 0;
 
   const addPoints = useCallback(
-    (amount: number): { newLevel: Level | null } => {
-      const next = points + amount;
-      window.localStorage.setItem(POINTS_STORAGE_KEY, String(next));
-      setPoints(next);
-
+    async (
+      amount: number,
+      reason = "task_completed"
+    ): Promise<{ newLevel: Level | null }> => {
+      const before = points;
+      if (userId) {
+        await supabase
+          .from("point_events")
+          .insert({ user_id: userId, amount, reason });
+        await refreshProfile();
+      }
+      const after = before + amount;
       const newLevel =
-        getLevelIndex(next) > getLevelIndex(points) ? getLevel(next) : null;
+        getLevelIndex(after) > getLevelIndex(before) ? getLevel(after) : null;
       return { newLevel };
     },
-    [points]
+    [userId, points, supabase, refreshProfile]
   );
 
   return (

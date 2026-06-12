@@ -16,7 +16,7 @@ export function ProfileExtras() {
       <input
         id="favorite-song"
         value={hydrated ? settings.favoriteSong : ""}
-        onChange={(e) => updateSettings({ favoriteSong: e.target.value })}
+        onChange={(e) => void updateSettings({ favoriteSong: e.target.value })}
         placeholder="z. B. Artist – Songtitel"
         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
       />

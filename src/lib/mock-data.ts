@@ -1,18 +1,7 @@
-// Placeholder data for the UI scaffold.
-// Once Supabase is connected, replace these with real queries against
-// the tables defined in supabase/migrations/0001_init.sql.
-
-export type MockProfile = {
-  id: string;
-  name: string;
-  pronouns?: string;
-  initials: string;
-  color: string;
-  imageUrl?: string;
-  // Static placeholder points for everyone except the signed-in user
-  // (whose real points come from usePoints/localStorage).
-  mockPoints?: number;
-};
+// Slider task question bank. Freitext questions and trait tags now come
+// from src/lib/question-bank.ts and src/lib/trait-bank.ts; real people,
+// answers, summaries and stats now come from Supabase
+// (see src/hooks/useProfileData.ts and supabase/migrations).
 
 export type MockQuestion = {
   id: string;
@@ -31,26 +20,6 @@ export type MockSliderQuestion = {
   rightLabel: string;
   stops: SliderStop[];
 };
-
-export const MOCK_GROUP = {
-  name: "Feuchtgebiete",
-  inviteCode: "#Couscous-Salat-2026",
-};
-
-export const MOCK_PROFILES: MockProfile[] = [
-  { id: "joey", name: "Joey", pronouns: "er/ihm", initials: "JG", color: "bg-rose-300" },
-  { id: "mia", name: "Mia", pronouns: "sie/ihr", initials: "M", color: "bg-amber-300", mockPoints: 120 },
-  { id: "ben", name: "Ben", initials: "B", color: "bg-emerald-300", mockPoints: 95 },
-  { id: "lou", name: "Lou", pronouns: "they/them", initials: "L", color: "bg-sky-300", mockPoints: 60 },
-];
-
-export const MOCK_QUESTIONS: MockQuestion[] = [
-  { id: "q1", text: "Was macht diese Person besonders?" },
-  { id: "q2", text: "Worin ist sie richtig gut?" },
-  { id: "q3", text: "Was ist ein typischer Satz von ihr?" },
-  { id: "q4", text: "Womit bringt sie andere zum Lachen?" },
-  { id: "q5", text: "Welcher Vibe passt zu ihr?" },
-];
 
 export const MOCK_SLIDER_QUESTIONS: MockSliderQuestion[] = [
   {
@@ -120,121 +89,12 @@ export const MOCK_SLIDER_QUESTIONS: MockSliderQuestion[] = [
   },
 ];
 
-export const MOCK_TAGS: string[] = [
-  "warmherzig",
-  "chaotisch-liebenswert",
-  "kreativ",
-  "zuverlässig",
-  "witzig",
-  "tiefgründig",
-  "abenteuerlustig",
-  "direkt",
-  "loyal",
-  "einfühlsam",
-  "inspirierend",
-  "gelassen",
-];
-
-export const MOCK_PROFILE_SUMMARY: Record<string, { content: string; approved: boolean; tags: string[] }> = {
-  joey: {
-    content:
-      "Joey wird von Freund:innen als kreativ, direkt und unglaublich loyal beschrieben. Besonders geschätzt wird, dass Joey Dinge anpackt, Menschen zusammenbringt und auch in chaotischen Momenten Humor behält.",
-    approved: true,
-    tags: ["kreativ", "direkt", "loyal", "witzig"],
-  },
-};
-
-export const MOCK_PROFILE_STATS: Record<
-  string,
-  { answeredAboutCount: number; topReplierId: string }
-> = {
-  joey: { answeredAboutCount: 7, topReplierId: "mia" },
-};
-
-export type ProfileAnswer = {
-  id: string;
-  text: string;
-  // Number of likes this answer already received from other friends
-  // (the current user's own like is tracked separately via useLikes
-  // and added on top of this base count).
-  likes?: number;
-};
-
-export type ProfileQuestionAnswers = {
-  question: string;
-  answers: ProfileAnswer[];
-};
-
-// Individual freitext answers that friends gave about this person,
-// shown directly on the published profile (in addition to the
-// generated summary text). When a question was answered by more than
-// one friend, all of their answers are listed together under that
-// question.
-export const MOCK_PROFILE_ANSWERS: Record<string, ProfileQuestionAnswers[]> = {
-  joey: [
-    {
-      question: "Was macht diese Person besonders?",
-      answers: [
-        {
-          id: "joey-a1-1",
-          text: "Joey bringt einfach jede Gruppe zusammen – wenn er da ist, passiert garantiert was Schönes.",
-          likes: 3,
-        },
-        {
-          id: "joey-a1-2",
-          text: "Er hat dieses Talent, aus einem ganz normalen Abend spontan das Highlight der Woche zu machen.",
-          likes: 2,
-        },
-      ],
-    },
-    {
-      question: "Worin ist sie richtig gut?",
-      answers: [
-        {
-          id: "joey-a2-1",
-          text: "Pläne schmieden, die am Ende wirklich stattfinden. Und Leute zum Lachen bringen, wenn's mal nicht so läuft.",
-          likes: 4,
-        },
-      ],
-    },
-    {
-      question: "Was ist ein typischer Satz von ihr?",
-      answers: [
-        {
-          id: "joey-a3-1",
-          text: "„Lass uns das einfach machen, wird schon!“",
-          likes: 1,
-        },
-        {
-          id: "joey-a3-2",
-          text: "„Ach komm, das wird bestimmt lustig.“",
-          likes: 0,
-        },
-      ],
-    },
-    {
-      question: "Womit bringt sie andere zum Lachen?",
-      answers: [
-        {
-          id: "joey-a4-1",
-          text: "Mit total übertriebenen Reaktionen auf die kleinsten Dinge – und perfektem Timing.",
-          likes: 5,
-        },
-      ],
-    },
-    {
-      question: "Welcher Vibe passt zu ihr?",
-      answers: [
-        {
-          id: "joey-a5-1",
-          text: "Golden-Retriever-Energie mit dem Timing eines Stand-up-Comedians.",
-          likes: 2,
-        },
-      ],
-    },
-  ],
-};
-
-export function getProfileById(id: string): MockProfile | undefined {
-  return MOCK_PROFILES.find((p) => p.id === id);
+// Returns a shuffled selection of slider questions so each task round
+// presents them in a different order (and, if `count` is smaller than the
+// full set, with a different subset).
+export function getRandomSliderQuestions(
+  count: number = MOCK_SLIDER_QUESTIONS.length
+): MockSliderQuestion[] {
+  const shuffled = [...MOCK_SLIDER_QUESTIONS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
 }

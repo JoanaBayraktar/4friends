@@ -1,17 +1,37 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
+import { useAuth } from "@/hooks/useAuth";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
-import { MOCK_GROUP } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
+import type { Group } from "@/lib/supabase/types";
 import { FeatureRequestForm } from "./FeatureRequestForm";
 
 export default function SettingsPage() {
-  const router = useRouter();
+  const { profile, signOut } = useAuth();
   const { settings, hydrated, updateSettings } = useProfileSettings();
+  const supabase = useMemo(() => createClient(), []);
+  const [group, setGroup] = useState<Group | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!profile) return;
+    let active = true;
+    supabase
+      .from("groups")
+      .select("*")
+      .eq("id", profile.group_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        setGroup(data ?? null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [profile, supabase]);
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -23,7 +43,6 @@ export default function SettingsPage() {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    // TODO: persist name/pronouns/photo to the `profiles` row in Supabase.
     setSaved(true);
   }
 
@@ -95,7 +114,7 @@ export default function SettingsPage() {
                 value={settings.name}
                 onChange={(e) => {
                   setSaved(false);
-                  updateSettings({ name: e.target.value });
+                  void updateSettings({ name: e.target.value });
                 }}
                 className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
               />
@@ -113,7 +132,7 @@ export default function SettingsPage() {
                 value={settings.pronouns}
                 onChange={(e) => {
                   setSaved(false);
-                  updateSettings({ pronouns: e.target.value });
+                  void updateSettings({ pronouns: e.target.value });
                 }}
                 placeholder="z. B. sie/ihr, er/ihm, they/them"
                 className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
@@ -142,7 +161,7 @@ export default function SettingsPage() {
               aria-checked={settings.notifications}
               onClick={() => {
                 setSaved(false);
-                updateSettings({ notifications: !settings.notifications });
+                void updateSettings({ notifications: !settings.notifications });
               }}
               className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
                 settings.notifications ? "bg-orange-400" : "bg-zinc-200"
@@ -163,13 +182,13 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-zinc-500">Name</span>
               <span className="font-medium text-zinc-900">
-                {MOCK_GROUP.name}
+                {group?.name ?? "–"}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-zinc-500">Einladungscode</span>
               <span className="font-mono font-medium text-zinc-900">
-                {MOCK_GROUP.inviteCode}
+                {group?.invite_code ?? "–"}
               </span>
             </div>
           </div>
@@ -195,7 +214,7 @@ export default function SettingsPage() {
             </button>
             <button
               type="button"
-              onClick={() => router.push("/login")}
+              onClick={() => void signOut()}
               className="flex-1 rounded-full border border-zinc-300 px-6 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
             >
               Abmelden

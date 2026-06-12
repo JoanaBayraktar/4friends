@@ -12,7 +12,7 @@ export function FeatureRequestForm() {
 
   function handleSubmit() {
     if (!text.trim()) return;
-    addRequest(type, text.trim());
+    void addRequest(type, text.trim());
     setText("");
     setSent(true);
   }

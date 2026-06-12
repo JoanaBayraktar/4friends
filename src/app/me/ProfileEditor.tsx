@@ -1,21 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export function ProfileEditor({
+  userId,
   initialContent,
   initialApproved,
 }: {
+  userId: string;
   initialContent: string;
   initialApproved: boolean;
 }) {
+  const supabase = useMemo(() => createClient(), []);
   const [content, setContent] = useState(initialContent);
   const [approved, setApproved] = useState(initialApproved);
   const [saved, setSaved] = useState(false);
 
-  function handleSave(nextApproved: boolean) {
-    // TODO: persist `content` and `approved` to `profile_summaries`
-    // for the signed-in user.
+  async function handleSave(nextApproved: boolean) {
+    await supabase.from("profile_summaries").upsert(
+      {
+        about_user_id: userId,
+        content,
+        approved: nextApproved,
+        approved_at: nextApproved ? new Date().toISOString() : null,
+      },
+      { onConflict: "about_user_id" }
+    );
     setApproved(nextApproved);
     setSaved(true);
   }
@@ -45,14 +56,14 @@ export function ProfileEditor({
       <div className="flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
-          onClick={() => handleSave(false)}
+          onClick={() => void handleSave(false)}
           className="flex-1 rounded-full border border-zinc-300 px-6 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-white"
         >
           Als Entwurf speichern
         </button>
         <button
           type="button"
-          onClick={() => handleSave(true)}
+          onClick={() => void handleSave(true)}
           className="flex-1 rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
         >
           Profil freigeben

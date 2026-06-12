@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthProvider } from "@/hooks/useAuth";
 import { PointsProvider } from "@/hooks/usePoints";
 import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
@@ -30,10 +31,14 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-orange-50 text-zinc-900">
-        <PointsProvider>
-          <div className="flex flex-1 flex-col pb-16 sm:pb-0">{children}</div>
-          <BottomNav />
-        </PointsProvider>
+        <AuthProvider>
+          <PointsProvider>
+            <div className="flex flex-1 flex-col pb-16 sm:pb-0">
+              {children}
+            </div>
+            <BottomNav />
+          </PointsProvider>
+        </AuthProvider>
       </body>
     </html>
   );
