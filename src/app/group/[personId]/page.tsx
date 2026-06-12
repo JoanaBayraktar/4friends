@@ -11,7 +11,7 @@ import { LevelUpModal } from "@/components/LevelUpModal";
 import { usePoints } from "@/hooks/usePoints";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
-import { getInitials } from "@/lib/auth";
+import { Avatar } from "@/components/Avatar";
 import { getRandomSliderQuestions } from "@/lib/mock-data";
 import type { MockQuestion, MockSliderQuestion } from "@/lib/mock-data";
 import { getRandomQuestions } from "@/lib/question-bank";
@@ -197,11 +197,12 @@ export default function PersonTaskPage() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <span
-              className={`flex h-14 w-14 items-center justify-center rounded-full text-lg font-semibold ${profile.color}`}
-            >
-              {getInitials(profile.name)}
-            </span>
+            <Avatar
+              name={profile.name}
+              color={profile.color}
+              imageUrl={profile.image_url}
+              className="h-14 w-14 text-lg"
+            />
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">
                 {taskTitle}: {profile.name}

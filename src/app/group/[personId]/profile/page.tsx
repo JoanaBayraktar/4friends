@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { AnswerCard } from "@/components/AnswerCard";
 import { useProfileData } from "@/hooks/useProfileData";
 import { createClient } from "@/lib/supabase/client";
-import { getInitials } from "@/lib/auth";
+import { Avatar } from "@/components/Avatar";
 import type { Profile } from "@/lib/supabase/types";
 
 export default function ProfilePage() {
@@ -69,11 +69,12 @@ export default function ProfilePage() {
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span
-            className={`flex h-24 w-24 items-center justify-center rounded-full text-3xl font-semibold shadow-sm ${profile.color}`}
-          >
-            {getInitials(profile.name)}
-          </span>
+          <Avatar
+            name={profile.name}
+            color={profile.color}
+            imageUrl={profile.image_url}
+            className="h-24 w-24 text-3xl shadow-sm"
+          />
           <div>
             <h1 className="flex items-center justify-center gap-1.5 text-2xl font-semibold tracking-tight">
               {profile.name}

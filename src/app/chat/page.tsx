@@ -7,7 +7,7 @@ import { useChat } from "@/hooks/useChat";
 import { useAuth } from "@/hooks/useAuth";
 import { useGroupMembers } from "@/hooks/useGroupMembers";
 import type { ChatMessage } from "@/lib/chat";
-import { getInitials } from "@/lib/auth";
+import { Avatar } from "@/components/Avatar";
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("de-DE", {
@@ -64,13 +64,12 @@ export default function ChatPage() {
                   isMe ? "flex-row-reverse" : ""
                 }`}
               >
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                    author?.color ?? "bg-zinc-200"
-                  }`}
-                >
-                  {author ? getInitials(author.name) : "?"}
-                </span>
+                <Avatar
+                  name={author?.name ?? "?"}
+                  color={author?.color ?? "bg-zinc-200"}
+                  imageUrl={author?.image_url}
+                  className="h-8 w-8 text-xs"
+                />
                 <div
                   className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
                     isMe

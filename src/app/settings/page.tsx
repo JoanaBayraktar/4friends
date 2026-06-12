@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
+import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
 import { createClient } from "@/lib/supabase/client";
@@ -9,12 +10,13 @@ import type { Group } from "@/lib/supabase/types";
 import { FeatureRequestForm } from "./FeatureRequestForm";
 
 export default function SettingsPage() {
-  const { profile, signOut } = useAuth();
+  const { profile, refreshProfile, signOut } = useAuth();
   const { settings, hydrated, updateSettings } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
   const [group, setGroup] = useState<Group | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -33,12 +35,42 @@ export default function SettingsPage() {
     };
   }, [profile, supabase]);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPhotoPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    if (!file || !profile) return;
+
+    setPhotoError(null);
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${profile.id}/avatar.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      // Bust caches so the new photo shows up immediately everywhere.
+      const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ image_url: publicUrl })
+        .eq("id", profile.id);
+      if (updateError) throw updateError;
+
+      await refreshProfile();
+    } catch (err) {
+      setPhotoError(
+        err instanceof Error
+          ? err.message
+          : "Foto konnte nicht hochgeladen werden."
+      );
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
   }
 
   function handleSave(e: React.FormEvent) {
@@ -46,7 +78,7 @@ export default function SettingsPage() {
     setSaved(true);
   }
 
-  if (!hydrated) {
+  if (!hydrated || !profile) {
     return (
       <div className="flex flex-1 flex-col">
         <Header />
@@ -74,33 +106,35 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               <label
                 htmlFor="photo"
-                className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-orange-100 text-xs font-medium text-orange-900 transition-colors hover:bg-orange-200"
+                className="cursor-pointer transition-opacity hover:opacity-80"
               >
-                {photoPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={photoPreview}
-                    alt="Profilfoto-Vorschau"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  "Foto"
-                )}
+                <Avatar
+                  name={profile.name}
+                  color={profile.color}
+                  imageUrl={profile.image_url}
+                  className="h-16 w-16 text-sm"
+                />
               </label>
               <input
                 id="photo"
                 type="file"
                 accept="image/*"
-                onChange={handlePhotoChange}
+                onChange={(e) => void handlePhotoChange(e)}
+                disabled={uploading}
                 className="hidden"
               />
               <label
                 htmlFor="photo"
-                className="cursor-pointer rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+                className={`cursor-pointer rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 ${
+                  uploading ? "pointer-events-none opacity-50" : ""
+                }`}
               >
-                Foto ändern
+                {uploading ? "Wird hochgeladen …" : "Foto ändern"}
               </label>
             </div>
+            {photoError && (
+              <p className="text-sm text-rose-600">{photoError}</p>
+            )}
 
             <div className="space-y-1">
               <label

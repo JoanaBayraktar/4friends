@@ -3,7 +3,7 @@
 import { usePoints } from "@/hooks/usePoints";
 import { useGroupMembers } from "@/hooks/useGroupMembers";
 import { POINTS_PER_TASK } from "@/lib/points";
-import { getInitials } from "@/lib/auth";
+import { Avatar } from "@/components/Avatar";
 
 export function ProfileStats({
   answeredAboutCount,
@@ -44,11 +44,12 @@ export function ProfileStats({
         <p className="text-xs font-medium text-zinc-400">Top Replier</p>
         {topReplier ? (
           <div className="mt-2 flex flex-col items-center gap-1">
-            <span
-              className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold ${topReplier.color}`}
-            >
-              {getInitials(topReplier.name)}
-            </span>
+            <Avatar
+              name={topReplier.name}
+              color={topReplier.color}
+              imageUrl={topReplier.image_url}
+              className="h-9 w-9 text-xs"
+            />
             <span className="text-sm font-semibold text-zinc-900">
               {topReplier.name}
             </span>

@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/useAuth";
 import { useGroupMembers } from "@/hooks/useGroupMembers";
-import { getInitials } from "@/lib/auth";
+import { Avatar } from "@/components/Avatar";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -32,11 +32,12 @@ export function Leaderboard() {
               <span className="w-6 text-center text-sm font-semibold text-zinc-400">
                 {MEDALS[index] ?? `${index + 1}.`}
               </span>
-              <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${member.color}`}
-              >
-                {getInitials(member.name)}
-              </span>
+              <Avatar
+                name={member.name}
+                color={member.color}
+                imageUrl={member.image_url}
+                className="h-9 w-9 text-xs"
+              />
               <span className="flex-1 text-sm font-medium text-zinc-900">
                 {member.name}
                 {isMe && (

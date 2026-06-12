@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
+import { Avatar } from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/server";
-import { getInitials } from "@/lib/auth";
 
 export default async function GroupOverviewPage() {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
 
   let groupName = "";
-  let members: { id: string; name: string; pronouns: string | null; color: string }[] = [];
+  let members: {
+    id: string;
+    name: string;
+    pronouns: string | null;
+    color: string;
+    image_url: string | null;
+  }[] = [];
 
   if (userData.user) {
     const { data: myProfile } = await supabase
@@ -26,7 +32,7 @@ export default async function GroupOverviewPage() {
           .maybeSingle(),
         supabase
           .from("profiles")
-          .select("id, name, pronouns, color")
+          .select("id, name, pronouns, color, image_url")
           .eq("group_id", myProfile.group_id)
           .order("name"),
       ]);
@@ -57,11 +63,12 @@ export default async function GroupOverviewPage() {
                 href={`/group/${profile.id}`}
                 className="group flex flex-col items-center gap-2 text-center"
               >
-                <span
-                  className={`flex h-20 w-20 items-center justify-center rounded-full text-xl font-semibold shadow-sm transition-transform group-hover:scale-105 ${profile.color}`}
-                >
-                  {getInitials(profile.name)}
-                </span>
+                <Avatar
+                  name={profile.name}
+                  color={profile.color}
+                  imageUrl={profile.image_url}
+                  className="h-20 w-20 text-xl shadow-sm transition-transform group-hover:scale-105"
+                />
                 <span className="font-medium text-zinc-900">
                   {profile.name}
                 </span>
